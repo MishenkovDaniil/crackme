@@ -6,7 +6,8 @@ org 100h
 
 include         ../macros/vidmem.asm 
 include         ../macros/exit.asm 
-len             equ 8 
+len             equ 44h
+sum_start       equ 33d
 
 Start:
             LoadVideoES
@@ -18,12 +19,56 @@ Start:
             mov dx, offset buff 
             int 21h 
 
-            mov di, offset buff
-            add di, 2
+            mov di, dx
+            inc di
+            mov bx, offset str_len 
+            mov cl, byte ptr [bx]
+            call hash  
+
+            mov bx, offset buff_hash
+            mov word ptr [bx], dx 
+            mov word ptr [bx + 2], ax 
+            
+            mov di, offset buff_hash
             lea si, password 
             call check_password 
 
             Exit 
+
+;-----------------------------------
+;hash the given string
+;-----------------------------------
+;Entry: DI = attr: start of string
+;       CL = attr: len of str 
+;Exit:  DX:AX = hash_sum
+;Destroys: BX, CL, DI
+;-----------------------------------
+hash                proc 
+
+                    xor dx, dx
+
+                    xor ah, ah 
+                    mov al, sum_start
+
+                    xor bh, bh 
+
+@@next: 
+                    mov bl, byte ptr [di]
+                    
+                    add ax, dx
+                    mov bh, dl
+                    mul bx
+                    
+                    inc di
+                    dec cl 
+
+                    cmp cl, 0
+                    jne @@next  
+
+
+                    ret
+                    endp 
+;-----------------------------------
 
 ;-----------------------------------
 ;checks if input password is correct or not
@@ -78,15 +123,18 @@ check_password      proc
 @@end:
                     ret
                     endp 
+;-----------------------------------
 
 include             ../frame/new_fr.asm 
 include             ../frame/f_clean.asm
 
 .data
 buff            db 32h, 9 dup (0)
-password        db '0123456'
+str_len         db 5d
+password        db 0DFh, 15h, 0EDh, 9Eh               ;0123
 deny_msg        db "20 2 40 20 FC 1 'access denied!'"
-password_len    dw 'G'
+password_len    dw 44h
 grant_msg       db "20 2 40 20 F2 1 'access granted!'"
+buff_hash       db 4 dup (0)
 
 end         Start 
